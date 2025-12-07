@@ -131,7 +131,15 @@ public class BookingServiceImpl implements BookingService {
 
 	@Override
 	public Mono<Ticket> getByPnr(String pnr) {
-		return ticketRepository.findByPnr(pnr);
+	    return ticketRepository.findByPnr(pnr)
+	            .flatMap(ticket ->
+	                    passengerRepository.findByTicketId(ticket.getId())
+	                            .collectList()
+	                            .map(passengers -> {
+	                                ticket.setPassengers(passengers);
+	                                return ticket;
+	                            })
+	            );
 	}
 
 	@Override
