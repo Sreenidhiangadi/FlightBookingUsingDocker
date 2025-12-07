@@ -46,7 +46,7 @@ public class AuthServiceImpl implements AuthService {
                         return Mono.error(new RuntimeException("Invalid password"));
                     }
                     String token = jwtService.generateToken(user.getEmail());
-                    return Mono.just(token);
+                    return Mono.just("token: " + token);
                 });
     }
 
