@@ -24,7 +24,7 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     @KafkaListener(
             topics = "booking-events",
-            groupId = "notification-service",
+            groupId = "notification-microservice",
             containerFactory = "bookingEventKafkaListenerContainerFactory")
     public void handleBookingEvent(BookingEvent event) {
         log.info("Received booking event: {}", event);
