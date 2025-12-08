@@ -16,8 +16,7 @@ The API Gateway is built using **Spring Cloud Gateway** and acts as the single e
 - JWT Authentication & Validation  
 - Role-Based Access Control  
 - Dynamic Routing  
-- Blocking Unauthorized Requests  
-- Reactive Backpressure Handling  
+- Blocking Unauthorized Requests 
 
 ### Security Powered By:
 - **OAuth2 Resource Server (JWT)**
@@ -69,13 +68,8 @@ This ensures:
 
 ---
 
-#  5. Fully Dockerized Architecture
 
-Each microservice includes its own Dockerfile and is orchestrated using **docker-compose**.
-
----
-
-##  Tech Stack
+# 5. Tech Stack
 
 ###  Backend
 - **Java 17**
@@ -86,14 +80,7 @@ Each microservice includes its own Dockerfile and is orchestrated using **docker
   - Config Server  
   - Eureka Discovery Server  
   - OpenFeign  
-- **Spring Security (OAuth2 + JWT Resource Server)**
-
-###  Database
-- **MongoDB (Reactive MongoDB Driver)**  
-- Separate DB per microservice:
-  - userservicedb  
-  - flightservicedb  
-  - bookingservicedb  
+- **Spring Security (OAuth2 + JWT Resource Server)** 
 
 ###  Messaging
 - **Apache Kafka**
@@ -110,8 +97,7 @@ Each microservice includes its own Dockerfile and is orchestrated using **docker
 - **Lombok**
 - **JUnit 5 + Mockito**
 
----  
-##  ER Diagram
+---  ##  ER Diagram
 
 ```mermaid
 erDiagram
@@ -163,7 +149,4 @@ erDiagram
         string mealPreference
         string ticketId
     }
----
-### Run All Services:
-```sh
-docker-compose up --build
+e up --build
