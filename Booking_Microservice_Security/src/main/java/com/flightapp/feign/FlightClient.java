@@ -12,23 +12,14 @@ import com.flightapp.dto.FlightDto;
 @FeignClient(name = "flight-microservice")
 public interface FlightClient {
 
-    @GetMapping("/api/flight/{id}")
-    FlightDto getFlight(
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
-            @PathVariable("id") String id
-    );
+	@GetMapping("/api/flight/{id}")
+	FlightDto getFlight(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @PathVariable("id") String id);
 
-    @PutMapping("/api/flight/internal/{id}/reserve/{seatCount}")
-    void reserveSeats(
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
-            @PathVariable("id") String id,
-            @PathVariable("seatCount") int seatCount
-    );
+	@PutMapping("/api/flight/internal/{id}/reserve/{seatCount}")
+	void reserveSeats(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @PathVariable("id") String id,
+			@PathVariable("seatCount") int seatCount);
 
-    @PutMapping("/api/flight/internal/{id}/release/{seatCount}")
-    void releaseSeats(
-            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
-            @PathVariable("id") String id,
-            @PathVariable("seatCount") int seatCount
-    );
+	@PutMapping("/api/flight/internal/{id}/release/{seatCount}")
+	void releaseSeats(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization, @PathVariable("id") String id,
+			@PathVariable("seatCount") int seatCount);
 }
