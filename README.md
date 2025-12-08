@@ -6,29 +6,14 @@ This project demonstrates real-world distributed architecture with secure gatewa
 
 ---
 
-##  What I Actually Implemented
+##  What I Implemented
 
 - **JWT-based authentication**  
-  - JWT generated only in **User Service** using **JJWT**  
-  - All other services validate JWT using **OAuth2 Resource Server**
-
 - **Secure API Gateway (Spring Cloud Gateway + WebFlux)**  
-  - Validates JWT before forwarding  
-  - Routes to user / flight / booking microservices
-
 - **Database-per-service with MongoDB**  
-  - `userservicedb`, `flightservicedb`, `bookingservicedb`
-
-- **Event-driven notifications with Kafka**  
-  - Booking Service publishes `BOOKING_CONFIRMED` / `BOOKING_CANCELLED`  
-  - Notification Service consumes and sends **Gmail SMTP emails**
-
-- **Fully dockerized setup with docker-compose**  
-  - One `docker-compose up --build` brings up  
-    Eureka, Config Server, Gateway, all microservices, Kafka, Zookeeper, MongoDB
-
-- **Reactive stack end-to-end**  
-  - Spring WebFlux + Reactive MongoDB in core services
+- **Event-driven notifications with Kafka** 
+- **Fully dockerized setup with docker-compose** 
+- **Reactive stack end-to-end** 
 
 ---
 
@@ -98,7 +83,7 @@ This ensures:
 
 ###  Backend
 - **Java 17**
-- **Spring Boot 3**
+- **Spring Boot**
 - **Spring WebFlux (Reactive)**
 - **Spring Cloud**
   - Spring Cloud Gateway  
@@ -128,6 +113,10 @@ This ensures:
 - **JUnit 5 + Mockito**
 
 ---
+
+## Architecture Diagram
+<img width="1854" height="847" alt="image" src="https://github.com/user-attachments/assets/bc7362ab-eefd-42cd-b751-5629867c3445" />
+<br><br>
 
 ##  ER Diagram
 
@@ -182,51 +171,3 @@ erDiagram
         string ticketId
     }
 
----
-##  Architecture Diagram
-
-```mermaid
-flowchart TD
-    CLIENT[Client (Postman / UI)] -->|HTTP + JWT| APIGW[API Gateway<br/>(Spring Cloud Gateway)]
-
-    subgraph Edge Layer
-        APIGW
-    end
-
-    APIGW -->|/user-microservice/**| USER[User Service<br/>JWT Generation]
-    APIGW -->|/flight-microservice/**| FLIGHT[Flight Service<br/>Flight Inventory]
-    APIGW -->|/booking-microservice/**| BOOKING[Booking Service<br/>Tickets + PNR]
-
-    %% Booking → Kafka → Notification
-    BOOKING -->|BookingEvent<br/>BOOKING_CONFIRMED / CANCELLED| TOPIC[(Kafka Topic<br/>booking-events)]
-    TOPIC --> NOTIF[Notification Service<br/>Email Sender]
-
-    %% Infra
-    subgraph Infra
-        EUREKA[Eureka Server]
-        CONFIG[Config Server]
-        MONGO[(MongoDB)]
-        ZK[Zookeeper]
-        KFK[Kafka Broker]
-    end
-
-    USER --- MONGO
-    FLIGHT --- MONGO
-    BOOKING --- MONGO
-
-    APIGW --- EUREKA
-    USER --- EUREKA
-    FLIGHT --- EUREKA
-    BOOKING --- EUREKA
-    NOTIF --- EUREKA
-    CONFIG --- EUREKA
-
-    USER ---> CONFIG
-    FLIGHT ---> CONFIG
-    BOOKING ---> CONFIG
-    NOTIF ---> CONFIG
-    APIGW ---> CONFIG
-
-    BOOKING --- KFK
-    NOTIF --- KFK
-    KFK --- ZK
