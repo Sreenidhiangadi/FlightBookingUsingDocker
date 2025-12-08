@@ -27,8 +27,7 @@ public class UserController {
 	@PostMapping("/register")
 	@ResponseStatus(HttpStatus.CREATED)
 	public Mono<String> register(@RequestBody User user) {
-		 return authService.register(user)
-		            .map(savedUser -> "user created with id: " + savedUser.getId());
+		return authService.register(user).map(savedUser -> "user created with id: " + savedUser.getId());
 	}
 
 	@PostMapping("/login")
