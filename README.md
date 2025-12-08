@@ -149,4 +149,4 @@ erDiagram
         string mealPreference
         string ticketId
     }
-e up --build
+
