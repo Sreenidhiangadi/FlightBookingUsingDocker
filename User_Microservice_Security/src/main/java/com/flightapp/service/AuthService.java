@@ -6,9 +6,13 @@ import reactor.core.publisher.Mono;
 
 public interface AuthService {
 
-	Mono<User> register(User user);
+	Mono<User> userregister(User user);
 
-	Mono<String> login(String email, String password);
+	Mono<String> userlogin(String email, String password);
+	
+	Mono<User> adminregister(User user);
+
+	Mono<String> adminlogin(String email, String password);
 
 	Mono<User> getByEmail(String email);
 

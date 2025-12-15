@@ -28,7 +28,8 @@ public class ServiceSecurityConfig {
 
 						.pathMatchers(HttpMethod.POST, "/api/user/register").permitAll()
 						.pathMatchers(HttpMethod.POST, "/api/user/login").permitAll()
-
+						.pathMatchers(HttpMethod.POST, "/api/admin/register").permitAll()
+						.pathMatchers(HttpMethod.POST, "/api/admin/login").permitAll()
 						.anyExchange().authenticated())
 				.oauth2ResourceServer(oauth2 -> oauth2.jwt()).build();
 	}

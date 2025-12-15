@@ -24,7 +24,7 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	public Mono<User> register(User user) {
+	public Mono<User> userregister(User user) {
 		return userRepository.findByEmail(user.getEmail()).flatMap(
 				existing -> Mono.<User>error(new RuntimeException("User already exists with email " + user.getEmail())))
 				.switchIfEmpty(Mono.defer(() -> {
@@ -34,17 +34,38 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	public Mono<String> login(String email, String password) {
+	public Mono<String> userlogin(String email, String password) {
 		return userRepository.findByEmail(email).switchIfEmpty(Mono.error(new RuntimeException("user is not found")))
 				.flatMap(user -> {
 					if (!passwordEncoder.matches(password, user.getPassword())) {
 						return Mono.error(new RuntimeException("Invalid password"));
 					}
-					String token = jwtService.generateToken(user.getEmail());
+					String token = jwtService.generateToken(user.getEmail(), user.getRole());
 					return Mono.just("token: " + token);
 				});
 	}
+    
+	@Override
+	public Mono<User> adminregister(User user) {
+		return userRepository.findByEmail(user.getEmail()).flatMap(
+				existing -> Mono.<User>error(new RuntimeException("Admin already exists with email " + user.getEmail())))
+				.switchIfEmpty(Mono.defer(() -> {
+					user.setPassword(passwordEncoder.encode(user.getPassword()));
+					return userRepository.save(user);
+				}));
+	}
 
+	@Override
+	public Mono<String> adminlogin(String email, String password) {
+		return userRepository.findByEmail(email).switchIfEmpty(Mono.error(new RuntimeException("Admin is not found")))
+				.flatMap(user -> {
+					if (!passwordEncoder.matches(password, user.getPassword())) {
+						return Mono.error(new RuntimeException("Invalid password"));
+					}
+					String token = jwtService.generateToken(user.getEmail(), user.getRole());
+					return Mono.just("token: " + token);
+				});
+	}
 	@Override
 	public Mono<User> getByEmail(String email) {
 		return userRepository.findByEmail(email).switchIfEmpty(Mono.error(new RuntimeException("no user found")));

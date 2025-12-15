@@ -9,13 +9,15 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.flightapp.dto.LoginRequest;
 import com.flightapp.entity.User;
 import com.flightapp.service.AuthService;
 
+import jakarta.validation.Valid;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api")
 public class UserController {
 
 	private final AuthService authService;
@@ -24,15 +26,25 @@ public class UserController {
 		this.authService = authService;
 	}
 
-	@PostMapping("/register")
+	@PostMapping("/user/register")
 	@ResponseStatus(HttpStatus.CREATED)
-	public Mono<String> register(@RequestBody User user) {
-		return authService.register(user).map(savedUser -> "user created with id: " + savedUser.getId());
+	public Mono<String> userregister(@Valid @RequestBody User user) {
+		return authService.userregister(user).map(savedUser -> "user created with id: " + savedUser.getId());
 	}
 
-	@PostMapping("/login")
-	public Mono<String> login(@RequestBody User user) {
-		return authService.login(user.getEmail(), user.getPassword());
+	@PostMapping("/user/login")
+	public Mono<String> userlogin(@Valid @RequestBody LoginRequest req) {
+	  return authService.userlogin(req.getEmail(), req.getPassword());
+	}
+	@PostMapping("/admin/register")
+	@ResponseStatus(HttpStatus.CREATED)
+	public Mono<String> adminregister(@Valid @RequestBody User user) {
+		return authService.adminregister(user).map(savedUser -> "user created with id: " + savedUser.getId());
+	}
+
+	@PostMapping("/admin/login")
+	public Mono<String> adminlogin(@Valid @RequestBody LoginRequest req) {
+	  return authService.adminlogin(req.getEmail(), req.getPassword());
 	}
 
 	@GetMapping("/{email}")

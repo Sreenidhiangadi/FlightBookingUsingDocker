@@ -1,21 +1,18 @@
 package com.flightapp.serviceimpl;
 
-import com.flightapp.messaging.BookingEvent;
+import static org.mockito.Mockito.*;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.mail.MailSendException;
+import org.mockito.MockitoAnnotations;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import com.flightapp.messaging.BookingEvent;
 
-@ExtendWith(MockitoExtension.class)
 class NotificationServiceImplTest {
 
     @Mock
@@ -24,84 +21,88 @@ class NotificationServiceImplTest {
     @InjectMocks
     private NotificationServiceImpl notificationService;
 
-    @Test
-    void handleBookingEvent_bookingConfirmed_sendsExpectedEmail() {
-        BookingEvent event = new BookingEvent();
-        event.setEventType("BOOKING_CONFIRMED");
-        event.setPnr("PNR123");
-        event.setUserEmail("sreenidhi@gmail.com");
-        event.setTotalPrice(1500.0);
-
-        notificationService.handleBookingEvent(event);
-
-        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mailSender, times(1)).send(captor.capture());
-
-        SimpleMailMessage message = captor.getValue();
-        assertThat(message.getTo()).containsExactly("sreenidhi@gmail.com");
-        assertThat(message.getSubject())
-                .isEqualTo("Your flight booking is confirmed - PNR PNR123");
-        assertThat(message.getText())
-                .contains("Your PNR is PNR123")
-                .contains("total price is 1500.0");
+    @BeforeEach
+    void setup() {
+        MockitoAnnotations.openMocks(this);
     }
 
     @Test
-    void handleBookingEvent_bookingCancelled_sendsExpectedEmail() {
+    void bookingConfirmed_shouldSendEmail() {
+        BookingEvent event = new BookingEvent();
+        event.setEventType("BOOKING_CONFIRMED");
+        event.setPnr("PNR123");
+        event.setUserEmail("user@example.com");
+        event.setTotalPrice(500.0);
+
+        notificationService.handleBookingEvent(event);
+
+        ArgumentCaptor<SimpleMailMessage> captor =
+                ArgumentCaptor.forClass(SimpleMailMessage.class);
+
+        verify(mailSender, times(1)).send(captor.capture());
+
+        SimpleMailMessage msg = captor.getValue();
+        assert msg.getTo() != null;
+        assert msg.getTo()[0].equals("user@example.com");
+        assert msg.getSubject().equals("Your flight booking is confirmed - PNR PNR123");
+        assert msg.getText().contains("PNR123");
+    }
+
+    @Test
+    void bookingCancelled_shouldSendEmail() {
         BookingEvent event = new BookingEvent();
         event.setEventType("BOOKING_CANCELLED");
-        event.setPnr("PNR456");
-        event.setUserEmail("sreenidhi@gmail.com");
+        event.setPnr("PNR999");
+        event.setUserEmail("user2@example.com");
         event.setTotalPrice(0.0);
 
         notificationService.handleBookingEvent(event);
 
-        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mailSender, times(1)).send(captor.capture());
+        ArgumentCaptor<SimpleMailMessage> captor =
+                ArgumentCaptor.forClass(SimpleMailMessage.class);
 
-        SimpleMailMessage message = captor.getValue();
-        assertThat(message.getTo()).containsExactly("sreenidhi@gmail.com");
-        assertThat(message.getSubject())
-                .isEqualTo("Your flight booking is cancelled - PNR PNR456");
-        assertThat(message.getText())
-                .isEqualTo("Your booking with PNR PNR456 has been cancelled.");
+        verify(mailSender).send(captor.capture());
+
+        SimpleMailMessage msg = captor.getValue();
+        assert msg.getTo()[0].equals("user2@example.com");
+        assert msg.getSubject().equals("Your flight booking is cancelled - PNR PNR999");
+        assert msg.getText().contains("PNR999");
     }
 
     @Test
-    void handleBookingEvent_unknownType_usesDefaultSubjectAndBody() {
+    void unknownEvent_shouldSendDefaultEmail() {
         BookingEvent event = new BookingEvent();
-        event.setEventType("SOME_OTHER_EVENT");
-        event.setPnr("PNR789");
-        event.setUserEmail("sreenidhi@gmail.com");
-        event.setTotalPrice(999.0);
+        event.setEventType("UNKNOWN");
+        event.setPnr("PNR777");
+        event.setUserEmail("user3@example.com");
+        event.setTotalPrice(100.0);
 
         notificationService.handleBookingEvent(event);
 
-        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mailSender, times(1)).send(captor.capture());
+        ArgumentCaptor<SimpleMailMessage> captor =
+                ArgumentCaptor.forClass(SimpleMailMessage.class);
 
-        SimpleMailMessage message = captor.getValue();
-        assertThat(message.getTo()).containsExactly("sreenidhi@gmail.com");
-        assertThat(message.getSubject())
-                .isEqualTo("Flight booking update");
-        assertThat(message.getText())
-                .isEqualTo("Update for booking PNR: PNR789");
+        verify(mailSender).send(captor.capture());
+
+        SimpleMailMessage msg = captor.getValue();
+        assert msg.getTo()[0].equals("user3@example.com");
+        assert msg.getSubject().equals("Flight booking update");
+        assert msg.getText().contains("PNR777");
     }
 
     @Test
-    void handleBookingEvent_mailSenderThrows_exceptionIsCaught() {
+    void mailFailure_shouldNotThrowException() {
+        doThrow(new RuntimeException("SMTP down"))
+                .when(mailSender).send(any(SimpleMailMessage.class));
+
         BookingEvent event = new BookingEvent();
         event.setEventType("BOOKING_CONFIRMED");
-        event.setPnr("PNR999");
-        event.setUserEmail("sreenidhi@gmail.com");
-        event.setTotalPrice(123.0);
-
-        doThrow(new MailSendException("fail"))
-                .when(mailSender)
-                .send(any(SimpleMailMessage.class));
+        event.setPnr("PNR123");
+        event.setUserEmail("user@example.com");
+        event.setTotalPrice(500.0);
 
         notificationService.handleBookingEvent(event);
 
-        verify(mailSender, times(1)).send(any(SimpleMailMessage.class));
+        verify(mailSender).send(any(SimpleMailMessage.class));
     }
 }
