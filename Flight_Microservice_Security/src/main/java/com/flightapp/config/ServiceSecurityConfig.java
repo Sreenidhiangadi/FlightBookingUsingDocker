@@ -38,7 +38,6 @@ public class ServiceSecurityConfig {
                 .csrf(ServerHttpSecurity.CsrfSpec::disable)
                 .authorizeExchange(exchanges -> exchanges
                         .pathMatchers("/actuator/**").permitAll()
-
                         .pathMatchers(HttpMethod.POST, "/api/flight/search").permitAll()
                         .pathMatchers(HttpMethod.POST, "/api/flight/search/airline").permitAll()
                         .pathMatchers(HttpMethod.GET, "/api/flight/getallflights").permitAll()
@@ -46,6 +45,8 @@ public class ServiceSecurityConfig {
 
                         
                         .pathMatchers(HttpMethod.POST, "/api/flight/airline/inventory/add").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.PUT, "/api/flight/update/**").hasRole("ADMIN")
+                        .pathMatchers(HttpMethod.DELETE, "/api/flight/delete/**").hasRole("ADMIN")
                         .pathMatchers("/api/flight/internal/**").hasAnyRole("USER","ADMIN")
 
                         .anyExchange().authenticated()
