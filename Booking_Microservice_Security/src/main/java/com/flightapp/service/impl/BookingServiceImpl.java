@@ -1,11 +1,16 @@
 package com.flightapp.service.impl;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.ReactiveSecurityContextHolder;
@@ -28,7 +33,6 @@ import lombok.RequiredArgsConstructor;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
-
 @Service
 @RequiredArgsConstructor
 public class BookingServiceImpl implements BookingService {
@@ -62,6 +66,31 @@ public class BookingServiceImpl implements BookingService {
         if (requestedEmail != null && requestedEmail.equalsIgnoreCase(caller.email())) return Mono.empty();
         return Mono.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied"));
     }
+    private Mono<Void> validateSeatsAvailable(
+            String departureFlightId,
+            List<Passenger> passengers
+    ) {
+        return Flux.fromIterable(passengers)
+            .flatMap(p ->
+                ticketRepository
+                    .existsByDepartureFlightIdAndCanceledFalseAndSeatsBookedContaining(
+                        departureFlightId,
+                        p.getSeatNumber()
+                    )
+                    .flatMap(exists -> {
+                        if (exists) {
+                            return Mono.error(
+                                new ResponseStatusException(
+                                    HttpStatus.CONFLICT,
+                                    "Seat " + p.getSeatNumber() + " is already booked"
+                                )
+                            );
+                        }
+                        return Mono.empty();
+                    })
+            )
+            .then();
+    }
 
     private Mono<Ticket> ensureTicketOwnerOrAdmin(Ticket ticket, Caller caller) {
         if (caller.isAdmin()) return Mono.just(ticket);
@@ -73,41 +102,79 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @CircuitBreaker(name = "bookingServiceCircuitBreaker", fallbackMethod = "bookTicketFallback")
-    public Mono<String> bookTicket(String userEmail, String departureFlightId, String returnFlightId,
-                                   List<Passenger> passengers, FLIGHTTYPE tripType) {
+    public Mono<String> bookTicket(
+            String userEmail,
+            String departureFlightId,
+            String returnFlightId,
+            List<Passenger> passengers,
+            FLIGHTTYPE tripType) {
 
         int seatCount = passengers.size();
 
         return currentCaller()
-                .flatMap(caller -> ensureCanActForEmail(userEmail, caller).thenReturn(caller))
-                .flatMap(caller -> Mono.fromCallable(() -> {
-                    FlightDto depFlight = flightClient.getFlight(caller.bearer(), departureFlightId);
-                    if (depFlight == null) throw new RuntimeException("Departure flight not found");
-                    if (depFlight.getAvailableSeats() < seatCount) throw new RuntimeException("Not enough seats in departure flight");
+            .flatMap(caller -> ensureCanActForEmail(userEmail, caller).thenReturn(caller))
+            .flatMap(caller ->
+                validateSeatsAvailable(departureFlightId, passengers)
+                    .then(
+                        Mono.fromCallable(() -> {
 
-                    FlightDto retFlight = null;
-                    if (tripType == FLIGHTTYPE.ROUND_TRIP && returnFlightId != null) {
-                        retFlight = flightClient.getFlight(caller.bearer(), returnFlightId);
-                        if (retFlight == null) throw new RuntimeException("Return flight not found");
-                        if (retFlight.getAvailableSeats() < seatCount) throw new RuntimeException("Not enough seats in return flight");
-                    }
+                            FlightDto depFlight =
+                                flightClient.getFlight(caller.bearer(), departureFlightId);
 
-                    flightClient.reserveSeats(caller.bearer(), departureFlightId, seatCount);
+                            if (depFlight == null)
+                                throw new RuntimeException("Departure flight not found");
 
-                    if (retFlight != null) {
-                        try {
-                            flightClient.reserveSeats(caller.bearer(), returnFlightId, seatCount);
-                        } catch (Exception e) {
-                            flightClient.releaseSeats(caller.bearer(), departureFlightId, seatCount);
-                            throw new RuntimeException("Failed to reserve return flight, rolled back departure");
-                        }
-                    }
+                            if (depFlight.getAvailableSeats() < seatCount)
+                                throw new RuntimeException("Not enough seats in departure flight");
 
-                    return new CheckedFlights(depFlight, retFlight);
-                }).subscribeOn(Schedulers.boundedElastic())
-                        .flatMap(checked -> createTicket(userEmail, departureFlightId, returnFlightId,
-                                passengers, tripType, checked.dep(), checked.ret())));
+                            FlightDto retFlight = null;
+                            if (tripType == FLIGHTTYPE.ROUND_TRIP && returnFlightId != null) {
+                                retFlight =
+                                    flightClient.getFlight(caller.bearer(), returnFlightId);
+
+                                if (retFlight == null)
+                                    throw new RuntimeException("Return flight not found");
+
+                                if (retFlight.getAvailableSeats() < seatCount)
+                                    throw new RuntimeException("Not enough seats in return flight");
+                            }
+                            flightClient.reserveSeats(
+                                caller.bearer(), departureFlightId, seatCount
+                            );
+
+                            if (retFlight != null) {
+                                try {
+                                    flightClient.reserveSeats(
+                                        caller.bearer(), returnFlightId, seatCount
+                                    );
+                                } catch (Exception e) {
+                                    flightClient.releaseSeats(
+                                        caller.bearer(), departureFlightId, seatCount
+                                    );
+                                    throw new RuntimeException(
+                                        "Failed to reserve return flight, rolled back departure"
+                                    );
+                                }
+                            }
+
+                            return new CheckedFlights(depFlight, retFlight);
+                        })
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .flatMap(checked ->
+                            createTicket(
+                                userEmail,
+                                departureFlightId,
+                                returnFlightId,
+                                passengers,
+                                tripType,
+                                checked.dep(),
+                                checked.ret()
+                            )
+                        )
+                    )
+            );
     }
+
 
     private Mono<String> bookTicketFallback(String userEmail, String departureFlightId, String returnFlightId,
                                            List<Passenger> passengers, FLIGHTTYPE tripType, Throwable throwable) {
@@ -163,32 +230,45 @@ public class BookingServiceImpl implements BookingService {
     @Override
     public Flux<Ticket> historyByEmail(String email) {
         return currentCaller()
-                .flatMapMany(caller -> {
-                    if (caller.isAdmin()) {
-                        return ticketRepository.findByUserEmail(email);
-                    }
-                    // USER can only read own history
-                    if (!caller.email().equalsIgnoreCase(email)) {
-                        return Flux.error(new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied"));
-                    }
-                    return ticketRepository.findByUserEmail(email);
-                });
+            .flatMapMany(caller -> {
+                if (!caller.isAdmin() && !caller.email().equalsIgnoreCase(email)) {
+                    return Flux.error(
+                        new ResponseStatusException(HttpStatus.FORBIDDEN, "Access denied")
+                    );
+                }
+
+                return ticketRepository.findByUserEmail(email)
+                    .flatMap(ticket ->
+                        passengerRepository.findByTicketId(ticket.getId())
+                            .collectList()
+                            .map(passengers -> {
+                                ticket.setPassengers(passengers);
+                                return ticket;
+                            })
+                    );
+            });
     }
 
+
     @Override
-    public Mono<String> cancelByPnr(String pnr) {
+    public Mono<ResponseEntity<String>> cancelByPnr(String pnr) {
         return currentCaller()
                 .flatMap(caller ->
                         ticketRepository.findByPnr(pnr)
-                                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "PNR not found")))
+                                .switchIfEmpty(Mono.error(
+                                        new ResponseStatusException(HttpStatus.NOT_FOUND, "PNR not found")
+                                ))
                                 .flatMap(ticket -> ensureTicketOwnerOrAdmin(ticket, caller))
                                 .flatMap(ticket -> cancelTicketInternal(ticket, caller.bearer()))
                 );
     }
+    private Mono<ResponseEntity<String>> cancelTicketInternal(Ticket ticket, String bearer) {
 
-    private Mono<String> cancelTicketInternal(Ticket ticket, String bearer) {
         if (ticket.isCanceled()) {
-            return Mono.just("Ticket already cancelled");
+            return Mono.just(
+                    ResponseEntity.status(HttpStatus.CONFLICT)
+                            .body("Ticket already cancelled")
+            );
         }
 
         int seatCount = (ticket.getSeatsBooked() != null && !ticket.getSeatsBooked().isEmpty())
@@ -196,32 +276,50 @@ public class BookingServiceImpl implements BookingService {
                 : 1;
 
         return Mono.fromCallable(() -> {
-            FlightDto depFlight = flightClient.getFlight(bearer, ticket.getDepartureFlightId());
-            LocalDateTime departureTime = depFlight.getDepartureTime();
-            LocalDateTime now = LocalDateTime.now();
+                    FlightDto depFlight =
+                            flightClient.getFlight(bearer, ticket.getDepartureFlightId());
 
-            if (!departureTime.minusHours(24).isAfter(now)) {
-                return (Object) "Cannot cancel ticket within 24 hours of departure";
-            }
+                    ZoneId systemZone = ZoneId.systemDefault();
+                    ZonedDateTime now = ZonedDateTime.now(systemZone);
+                    ZonedDateTime departure =
+                            depFlight.getDepartureTime().atZone(systemZone);
 
-            flightClient.releaseSeats(bearer, ticket.getDepartureFlightId(), seatCount);
-            if (ticket.getReturnFlightId() != null) {
-                flightClient.releaseSeats(bearer, ticket.getReturnFlightId(), seatCount);
-            }
+                    if (departure.isBefore(now.plusHours(24))) {
+                        throw new ResponseStatusException(
+                                HttpStatus.BAD_REQUEST,
+                                "Cannot cancel booking within 24 hours of departure"
+                        );
+                    }
 
-            return (Object) ticket;
-        }).subscribeOn(Schedulers.boundedElastic())
-          .flatMap(result -> {
-              if (result instanceof String msg) return Mono.just(msg);
-              return updateCancellation((Ticket) result);
-          });
+                    flightClient.releaseSeats(
+                            bearer,
+                            ticket.getDepartureFlightId(),
+                            seatCount
+                    );
+
+                    if (ticket.getReturnFlightId() != null) {
+                        flightClient.releaseSeats(
+                                bearer,
+                                ticket.getReturnFlightId(),
+                                seatCount
+                        );
+                    }
+
+                    return ticket;
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(this::updateCancellation);
     }
 
-    private Mono<String> updateCancellation(Ticket ticket) {
+
+    private Mono<ResponseEntity<String>> updateCancellation(Ticket ticket) {
         ticket.setCanceled(true);
+
         return ticketRepository.save(ticket)
                 .doOnSuccess(saved -> sendEvent("BOOKING_CANCELLED", saved))
-                .thenReturn("Cancelled Successfully");
+                .thenReturn(
+                        ResponseEntity.ok("Cancelled Successfully")
+                );
     }
 
     private void sendEvent(String eventType, Ticket ticket) {
