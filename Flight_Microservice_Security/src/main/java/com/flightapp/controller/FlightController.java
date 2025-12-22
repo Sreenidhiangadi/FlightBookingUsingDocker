@@ -1,8 +1,11 @@
 package com.flightapp.controller;
 
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,10 +40,12 @@ public class FlightController {
 	}
 
 	@PostMapping("/search")
-	public Flux<Flight> searchFlights(@RequestBody FlightSearchRequest request) {
-		return flightService.searchFlights(request.getFromPlace(), request.getToPlace(), request.getStartTime(),
-				request.getEndTime());
+	public Mono<List<Flight>> searchFlights(
+	        @RequestBody FlightSearchRequest request) {
+
+	    return flightService.search(request);
 	}
+
 
 	@PutMapping("/internal/{id}/reserve/{seatCount}")
 	public Mono<Flight> reserveSeats(@PathVariable String id, @PathVariable int seatCount) {
@@ -66,5 +71,17 @@ public class FlightController {
 	public Mono<Flight> getFlightById(@PathVariable String id) {
 		return flightService.searchFlightById(id);
 	}
-
+    
+	@PutMapping("/update/{flightId}")
+	    public Mono<String> updateFlight(@PathVariable String flightId,
+	                                     @RequestBody Flight flight) {
+	        return flightService.updateFlight(flightId, flight)
+	                .map(updated -> "Flight updated successfully");
+	    }
+	 
+	    @DeleteMapping("/delete/{flightId}")
+	  public Mono<String> deleteFlight(@PathVariable String flightId) {
+		    return flightService.deleteFlight(flightId)
+		            .thenReturn("Flight deleted successfully");
+		}
 }
