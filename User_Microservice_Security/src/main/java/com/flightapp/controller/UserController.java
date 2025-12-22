@@ -1,14 +1,17 @@
 package com.flightapp.controller;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.flightapp.dto.ChangePasswordRequest;
 import com.flightapp.dto.LoginRequest;
 import com.flightapp.entity.User;
 import com.flightapp.service.AuthService;
@@ -40,6 +43,24 @@ public class UserController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public Mono<String> adminregister(@Valid @RequestBody User user) {
 		return authService.adminregister(user).map(savedUser -> "user created with id: " + savedUser.getId());
+	}
+	@GetMapping("/me")
+	public Mono<User> getMyProfile(Authentication authentication) {
+	    String email = authentication.getName();
+	    return authService.getByEmail(email);
+	}
+	@PutMapping("/user/change-password")
+	public Mono<String> changePassword(
+	        @Valid @RequestBody ChangePasswordRequest request,
+	        Authentication authentication) {
+
+	    String email = authentication.getName();
+
+	    return authService.changePassword(
+	            email,
+	            request.getCurrentPassword(),
+	            request.getNewPassword()
+	    ).thenReturn("Password changed successfully");
 	}
 
 	@PostMapping("/admin/login")
