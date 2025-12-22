@@ -1,17 +1,19 @@
 //package com.flightapp.controller;
 //
 //import static org.mockito.ArgumentMatchers.any;
-//import static org.mockito.ArgumentMatchers.anyList;
-//import static org.mockito.ArgumentMatchers.anyString;
-//import static org.mockito.Mockito.verify;
-//import static org.mockito.Mockito.when;
+//import static org.mockito.ArgumentMatchers.eq;
+//import static org.springframework.security.test.web.reactive.server.SecurityMockServerConfigurers.mockJwt;
 //
-//import java.time.LocalDateTime;
 //import java.util.List;
 //
-//import org.junit.jupiter.api.BeforeEach;
 //import org.junit.jupiter.api.Test;
 //import org.mockito.Mockito;
+//import org.springframework.beans.factory.annotation.Autowired;
+//import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+//import org.springframework.boot.test.mock.mockito.MockBean;
+//import org.springframework.context.annotation.Import;
+//import org.springframework.http.MediaType;
+//import org.springframework.test.web.reactive.server.WebTestClient;
 //
 //import com.flightapp.entity.FLIGHTTYPE;
 //import com.flightapp.entity.Passenger;
@@ -20,42 +22,94 @@
 //
 //import reactor.core.publisher.Flux;
 //import reactor.core.publisher.Mono;
-//import reactor.test.StepVerifier;
 //
+//@WebFluxTest(controllers = BookingController.class)
 //class BookingControllerTest {
 //
-//	private BookingService bookingService;
-//	private BookingController bookingController;
+//    @Autowired
+//    private WebTestClient webTestClient;
 //
-//	@BeforeEach
-//	void setUp() {
-//		bookingService = Mockito.mock(BookingService.class);
-//		bookingController = new BookingController(bookingService);
-//	}
+//    @MockBean
+//    private BookingService bookingService;
 //
-//	@Test
-//	void testGetTicket() {
-//		Ticket ticket = new Ticket();
-//		ticket.setPnr("PNR123");
-//		ticket.setUserEmail("pooja@gmail.com");
-//		ticket.setDepartureFlightId("DEP123");
-//		ticket.setTripType(FLIGHTTYPE.ONE_WAY);
-//		ticket.setBookingTime(LocalDateTime.now());
+//    @Test
+//    void bookTicket() {
+//        Passenger passenger = new Passenger();
+//        passenger.setName("sreenidhi");
 //
-//		when(bookingService.getByPnr("PNR123")).thenReturn(Mono.just(ticket));
+//        BookingController.BookingRequest request = new BookingController.BookingRequest();
+//        request.setUserEmail("sreenidhi@gmail.com");
+//        request.setTripType(FLIGHTTYPE.ONE_WAY);
+//        request.setPassengers(List.of(passenger));
 //
-//		StepVerifier.create(bookingController.getTicket("PNR123")).expectNext(ticket).verifyComplete();
+//        Mockito.when(bookingService.bookTicket(
+//                eq("sreenidhi@gmail.com"),
+//                eq("FL001"),
+//                any(),
+//                any(),
+//                eq(FLIGHTTYPE.ONE_WAY)
+//        )).thenReturn(Mono.just("PNR123"));
 //
-//		verify(bookingService).getByPnr("PNR123");
-//	}
+//        webTestClient
+//                .mutateWith(mockJwt().jwt(jwt -> jwt.subject("sreenidhi@gmail.com")))
+//                .post()
+//                .uri("/api/flight/booking/FL001")
+//                .contentType(MediaType.APPLICATION_JSON)
+//                .bodyValue(request)
+//                .exchange()
+//                .expectStatus().isOk()
+//                .expectBody(String.class).isEqualTo("PNR: PNR123");
+//    }
 //
+//    @Test
+//    void getTicketByPnr() {
+//        Ticket ticket = new Ticket();
+//        ticket.setPnr("PNR123");
 //
-//	@Test
-//	void testCancel() {
+//        Mockito.when(bookingService.getByPnr("PNR123"))
+//                .thenReturn(Mono.just(ticket));
 //
-//		when(bookingService.cancelByPnr("PNR123")).thenReturn(Mono.just("Cancelled"));
-//		StepVerifier.create(bookingController.cancel("PNR123")).expectNext("Cancelled")
-//				.verifyComplete();
-//		verify(bookingService).cancelByPnr("PNR123");
-//	}
+//        webTestClient
+//                .mutateWith(mockJwt())
+//                .get()
+//                .uri("/api/flight/ticket/PNR123")
+//                .exchange()
+//                .expectStatus().isOk()
+//                .expectBody()
+//                .jsonPath("$.pnr").isEqualTo("PNR123");
+//    }
+//
+//    @Test
+//    void bookingHistoryForUser() {
+//        Ticket ticket = new Ticket();
+//        ticket.setPnr("PNR123");
+//
+//        Mockito.when(bookingService.historyByEmail("sreenidhi@gmail.com"))
+//                .thenReturn(Flux.just(ticket));
+//
+//        webTestClient
+//                .mutateWith(mockJwt().jwt(jwt -> jwt.subject("sreenidhi@gmail.com")))
+//                .get()
+//                .uri("/api/flight/booking/history")
+//                .exchange()
+//                .expectStatus().isOk()
+//                .expectBodyList(Ticket.class).hasSize(1);
+//    }
+//
+//    @Test
+//    void bookingHistoryForAdmin() {
+//        Ticket ticket = new Ticket();
+//        ticket.setPnr("PNR123");
+//
+//        Mockito.when(bookingService.historyByEmail("sreenidhi@gmail.com"))
+//                .thenReturn(Flux.just(ticket));
+//
+//        webTestClient
+//                .mutateWith(mockJwt().authorities(() -> "ROLE_ADMIN"))
+//                .get()
+//                .uri("/api/flight/admin/booking/history/sreenidhi@gmail.com")
+//                .exchange()
+//                .expectStatus().isOk()
+//                .expectBodyList(Ticket.class).hasSize(1);
+//    }
 //}
