@@ -9,6 +9,8 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
+
 public interface BookingService {
 
     Mono<String> bookTicket(String userEmail,
@@ -21,5 +23,6 @@ public interface BookingService {
 
     Flux<Ticket> historyByEmail(String email);
 
-    Mono<String> cancelByPnr(String pnr);
+//    Mono<String> cancelByPnr(String pnr);
+    Mono<ResponseEntity<String>> cancelByPnr(String pnr);
 }
