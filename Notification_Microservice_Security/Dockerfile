@@ -1,14 +1,9 @@
-FROM maven:3.9.9-eclipse-temurin-17 AS build
-WORKDIR /app
-COPY pom.xml .
-COPY src ./src
-RUN mvn clean package 
+FROM maven:3.9.9-eclipse-temurin-17
 
-FROM eclipse-temurin:17-jdk
-WORKDIR /app
-COPY --from=build /app/target/Notification_Microservice-0.0.1-SNAPSHOT.jar app.jar
+WORKDIR /notification-microservice
 
-# Notification port
+COPY target/Notification_Microservice-0.0.1-SNAPSHOT.jar app.jar
+
 EXPOSE 8083
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+CMD ["java", "-jar", "app.jar","--spring.profiles.active=docker"]
