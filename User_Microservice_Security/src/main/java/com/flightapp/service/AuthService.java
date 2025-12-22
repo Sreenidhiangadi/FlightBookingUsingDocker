@@ -15,5 +15,8 @@ public interface AuthService {
 	Mono<String> adminlogin(String email, String password);
 
 	Mono<User> getByEmail(String email);
+	
+	Mono<Void> changePassword(String email, String currentPassword, String newPassword);
+
 
 }
