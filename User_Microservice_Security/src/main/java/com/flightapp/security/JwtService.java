@@ -26,16 +26,6 @@ public class JwtService {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
-//    public String generateToken(String email) {
-//        Instant now = Instant.now();
-//
-//        return Jwts.builder()
-//                .setSubject(email)                
-//                .setIssuedAt(Date.from(now))
-//                .setExpiration(Date.from(now.plus(1, ChronoUnit.DAYS)))
-//                .signWith(key, SignatureAlgorithm.HS256)
-//                .compact();
-//    }
     public String generateToken(String email, Role role) {
         Instant now = Instant.now();
 
@@ -47,4 +37,16 @@ public class JwtService {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
+    public String generatePasswordChangeToken(String email) {
+        return Jwts.builder()
+            .setSubject(email)
+            .claim("pwd_change", true)   
+            .setIssuedAt(new Date())
+            .setExpiration(
+                new Date(System.currentTimeMillis() + 10 * 60 * 1000) // 10 minutes
+            )
+            .signWith(key)
+            .compact();
+    }
+
 }
