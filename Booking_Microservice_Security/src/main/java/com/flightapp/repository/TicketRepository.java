@@ -13,4 +13,10 @@ public interface TicketRepository extends ReactiveMongoRepository<Ticket, String
 	Mono<Ticket> findByPnr(String pnr);
 
 	Flux<Ticket> findByUserEmail(String email);
+	
+	  Mono<Boolean> existsByDepartureFlightIdAndCanceledFalseAndSeatsBookedContaining(
+		        String departureFlightId,
+		        String seatNumber
+		    );
+
 }
