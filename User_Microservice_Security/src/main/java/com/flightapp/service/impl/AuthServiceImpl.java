@@ -1,7 +1,9 @@
 package com.flightapp.service.impl;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.flightapp.entity.User;
 import com.flightapp.repository.UserRepository;
@@ -69,5 +71,39 @@ public class AuthServiceImpl implements AuthService {
 	@Override
 	public Mono<User> getByEmail(String email) {
 		return userRepository.findByEmail(email).switchIfEmpty(Mono.error(new RuntimeException("no user found")));
+	}
+
+	@Override
+	public Mono<Void> changePassword(String email,
+	                                 String currentPassword,
+	                                 String newPassword) {
+
+	    return userRepository.findByEmail(email)
+	        .switchIfEmpty(Mono.error(
+	            new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found")
+	        ))
+	        .flatMap(user -> {
+
+	            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+	                return Mono.error(
+	                    new ResponseStatusException(
+	                        HttpStatus.BAD_REQUEST,
+	                        "Current password is incorrect"
+	                    )
+	                );
+	            }
+
+	            if (passwordEncoder.matches(newPassword, user.getPassword())) {
+	                return Mono.error(
+	                    new ResponseStatusException(
+	                        HttpStatus.BAD_REQUEST,
+	                        "New password must be different from old password"
+	                    )
+	                );
+	            }
+
+	            user.setPassword(passwordEncoder.encode(newPassword));
+	            return userRepository.save(user).then();
+	        });
 	}
 }
