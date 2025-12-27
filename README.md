@@ -2,7 +2,7 @@
 
 A complete microservices-based flight booking platform built using **Spring Boot**, **Spring Cloud**, **JWT Security**, **Kafka**, **MongoDB**, **Docker**, and **WebFlux**.
 
-This project demonstrates real-world distributed architecture with secure gateway routing, centralized configuration, service discovery, reactive programming, and event-driven communication.
+This project demonstrates real-world distributed architecture with secure gateway routing, centralized configuration, service discovery, reactive programming, and event-driven communication and jenkins implementation.
 
 ---
 
